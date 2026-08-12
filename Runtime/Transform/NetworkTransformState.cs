@@ -7,13 +7,8 @@ namespace NetworkSync.Transform
 {
     public struct NetworkTransformState : ITickStamped
     {
-        private int _tick;
+        public int Tick { get; set; }
 
-        public int Tick
-        {
-            get => _tick;
-            set => _tick = value;
-        }
         public INetworkAnchor Anchor;
         public Vector3 Position;
         public Quaternion Rotation;
@@ -24,9 +19,9 @@ namespace NetworkSync.Transform
         public bool Teleported;
 
         /// <summary>Gets world-space position and world-space rotation.</summary>
-        public void GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation)
+        public readonly void GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation)
         {
-            if (Anchor == null)
+            if (Anchor?.NetworkBehaviour == null)
             {
                 worldPosition = Position;
                 worldRotation = Rotation;
@@ -56,9 +51,9 @@ namespace NetworkSync.Transform
         }
 
         /// <summary>Gets world-space scale.</summary>
-        public Vector3 GetWorldScale()
+        public readonly Vector3 GetWorldScale()
         {
-            if (Anchor != null && !WorldScale)
+            if (Anchor?.NetworkBehaviour != null && !WorldScale)
             {
                 return AnchoredTransformUtility.GetWorldScale(Scale, Anchor.GetWorldScale());
             }

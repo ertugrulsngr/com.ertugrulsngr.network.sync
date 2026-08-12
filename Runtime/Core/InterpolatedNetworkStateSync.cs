@@ -1,3 +1,4 @@
+using NetworkSync.Utility;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -12,11 +13,13 @@ namespace NetworkSync.Core
         where TPayload : struct, INetworkSerializable
     {
         /// <summary>Maximum samples stored in the interpolation buffer.</summary>
-        protected int BufferCapacity = 32;
+        [Min(1)]
+        [Tooltip("Maximum samples stored in the interpolation buffer.")]
+        public int BufferCapacity = 32;
 
-        [SerializeField, Min(0)]
+        [Min(0)]
         [Tooltip("Network ticks between sends. 0 = every tick.")]
-        private int _ticksPerSend;
+        public int TicksPerSend;
 
         private int _forcedStateTick = int.MinValue;
         private int _ticksSinceSend;
@@ -42,7 +45,7 @@ namespace NetworkSync.Core
         protected InterpolationBuffer<TState> Buffer { get; private set; }
 
         /// <summary>Integer tick used to stamp outgoing authoritative state.</summary>
-        protected virtual int SendTick => NetworkSyncManager.Instance.TimeService.ServerTime.Tick;
+        protected virtual int SendTick => NetworkSyncManager.Instance.TimeService.ServerReceiveTime.Tick;
 
         /// <summary>Fractional tick used to sample the interpolation buffer.</summary>
         protected virtual double InterpolationTick => NetworkSyncManager.Instance.TimeService.InterpolationTime.TickWithPartial;
@@ -88,7 +91,7 @@ namespace NetworkSync.Core
 
         public void NetworkUpdate(NetworkUpdateStage updateStage)
         {
-            SampleAndApply();
+            InterpolateAndApply();
         }
 
         /// <summary>Called each network tick. Default sends from authority on the configured interval.</summary>
@@ -96,14 +99,14 @@ namespace NetworkSync.Core
         {
             if (!IsSpawned || !IsLocalAuthority) return;
 
-            if (_ticksPerSend <= 0)
+            if (TicksPerSend <= 0)
             {
                 SendState();
                 return;
             }
 
             _ticksSinceSend++;
-            if (_ticksSinceSend < _ticksPerSend) return;
+            if (_ticksSinceSend < TicksPerSend) return;
 
             _ticksSinceSend = 0;
             SendState();
@@ -148,18 +151,24 @@ namespace NetworkSync.Core
             Buffer.TryAdd(state);
         }
 
-        private void SampleAndApply()
+        private void InterpolateAndApply()
         {
             if (!IsSpawned || IsLocalAuthority) return;
 
-            if (TrySample(out TState state))
+            if (TryGetInterpolatedState(out TState state))
             {
+                ProcessInterpolatedState(ref state);
                 SetState(state);
             }
         }
 
-        /// <summary>Samples the buffer at <see cref="InterpolationTick"/> and blends the pair.</summary>
-        protected bool TrySample(out TState state)
+        /// <summary>Optional post-interpolate processing before <see cref="SetState"/> (e.g. visual smoothing).</summary>
+        protected virtual void ProcessInterpolatedState(ref TState state)
+        {
+        }
+
+        /// <summary>Gets the interpolated state at <see cref="InterpolationTick"/>, or false if none is available.</summary>
+        protected bool TryGetInterpolatedState(out TState state)
         {
             if (!Buffer.TryGetInterpolationPair(
                     InterpolationTick,

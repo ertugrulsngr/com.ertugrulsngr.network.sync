@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using NetworkSync.Core;
 
-namespace NetworkSync.Core
+namespace NetworkSync.Utility
 {
     /// <summary>
     /// Fixed-capacity buffer of tick-stamped samples, sorted by tick.

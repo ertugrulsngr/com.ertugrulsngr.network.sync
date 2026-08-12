@@ -40,7 +40,7 @@ namespace NetworkSync.Transform
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Scale;
-        public NetworkObjectReference AnchorReference;
+        public NetworkBehaviourReference AnchorReference;
 
         public bool WorldPosition => (Flags & NetworkTransformPayloadFlags.WorldPosition) != 0;
         public bool WorldRotation => (Flags & NetworkTransformPayloadFlags.WorldRotation) != 0;

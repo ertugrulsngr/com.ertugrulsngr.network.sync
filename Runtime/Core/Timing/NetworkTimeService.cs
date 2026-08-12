@@ -83,7 +83,7 @@ namespace NetworkSync.Core.Timing
 
         private void UpdateEstimatedTimes(NetworkTime serverTime, LatencyMetrics localLatencyMetrics)
         {
-            int smoothedRttTicks = localLatencyMetrics != null ? localLatencyMetrics.SmoothedRttTicks : 0;
+            int smoothedRttTicks = localLatencyMetrics?.SmoothedRttTicks ?? 0;
             int estimatedServerReceiveTick = serverTime.Tick + smoothedRttTicks;
 
             ServerReceiveTime = new NetworkTime(TickRate, estimatedServerReceiveTick, serverTime.TickOffset);

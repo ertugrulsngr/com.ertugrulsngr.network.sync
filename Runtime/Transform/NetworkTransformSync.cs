@@ -11,28 +11,47 @@ namespace NetworkSync.Transform
         /// <summary>How many ticks ahead of authoritative time a client stamp may stay on relay.</summary>
         public const int MaxClientTickAhead = 2;
 
-        [SerializeField] private bool _syncPositionX = true;
-        [SerializeField] private bool _syncPositionY = true;
-        [SerializeField] private bool _syncPositionZ = true;
-        [SerializeField] private bool _syncRotation = true;
-        [SerializeField] private bool _compressRotation = true;
-        [SerializeField] private bool _syncScaleX = true;
-        [SerializeField] private bool _syncScaleY = true;
-        [SerializeField] private bool _syncScaleZ = true;
-        
-        [SerializeField] private float _positionThreshold = 0.001f;
-        [SerializeField, Range(0f, 180f)] private float _rotationAngleThreshold = 0.01f;
-        [SerializeField] private float _scaleThreshold = 0.01f;
-        [SerializeField] private bool _relativePosition = true;
-        [SerializeField] private bool _relativeRotation = true;
-        [SerializeField] private bool _relativeScale = true;
+        public bool SyncPositionX = true;
+        public bool SyncPositionY = true;
+        public bool SyncPositionZ = true;
+        public bool SyncRotation = true;
+        public bool CompressRotation = true;
+        public bool SyncScaleX = true;
+        public bool SyncScaleY = true;
+        public bool SyncScaleZ = true;
 
-        
+        public float PositionThreshold = 0.001f;
+        [Range(0f, 180f)] public float RotationAngleThreshold = 0.01f;
+        public float ScaleThreshold = 0.01f;
+        public bool RelativePosition = true;
+        public bool RelativeRotation = true;
+        public bool RelativeScale = true;
+
+        [Tooltip("Lerp rendered position toward the interpolated sample (NGO LegacyLerp style).")]
+        public bool PositionLerpSmoothing = true;
+        [Min(0.001f)]
+        [Tooltip("Seconds to close most of the gap to the interpolated position target.")]
+        public float PositionMaxInterpolationTime = 0.1f;
+
+        [Tooltip("Slerp rendered rotation toward the interpolated sample.")]
+        public bool RotationLerpSmoothing = true;
+        [Min(0.001f)]
+        [Tooltip("Seconds to close most of the gap to the interpolated rotation target.")]
+        public float RotationMaxInterpolationTime = 0.1f;
+
+        [Tooltip("Lerp rendered scale toward the interpolated sample.")]
+        public bool ScaleLerpSmoothing = true;
+        [Min(0.001f)]
+        [Tooltip("Seconds to close most of the gap to the interpolated scale target.")]
+        public float ScaleMaxInterpolationTime = 0.1f;
 
         public INetworkAnchor Anchor { get; set; }
 
         /// <summary>When true, the next send is marked teleported, then this is cleared.</summary>
         public bool Teleported { get; set; }
+
+        /// <inheritdoc />
+        public NetworkBehaviour NetworkBehaviour => this;
 
         public void GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation)
         {
@@ -50,7 +69,7 @@ namespace NetworkSync.Transform
             int serverTick = SendTick;
             int tick = payload.Tick;
             int maxAllowedTick = serverTick + MaxClientTickAhead;
-            int lastRelayedTick = LastSyncedState.HasValue ? LastSyncedState.Value.Tick : -1;
+            int lastRelayedTick = LastSyncedState?.Tick ?? -1;
 
             if (tick < serverTick) tick = serverTick;
             if (tick <= lastRelayedTick) tick = lastRelayedTick + 1;
@@ -72,7 +91,7 @@ namespace NetworkSync.Transform
                 Teleported = Teleported
             };
 
-            if (Anchor == null || Anchor.NetworkObject == null)
+            if (Anchor == null || Anchor.NetworkBehaviour == null)
             {
                 state.Anchor = null;
                 state.Position = worldPosition;
@@ -88,13 +107,13 @@ namespace NetworkSync.Transform
             Vector3 anchorScale = Anchor.GetWorldScale();
 
             state.Anchor = Anchor;
-            state.WorldPosition = !_relativePosition;
-            state.WorldRotation = !_relativeRotation;
-            state.WorldScale = !_relativeScale;
+            state.WorldPosition = !RelativePosition;
+            state.WorldRotation = !RelativeRotation;
+            state.WorldScale = !RelativeScale;
 
-            if (_relativePosition)
+            if (RelativePosition)
             {
-                Vector3 positionScale = _relativeScale ? anchorScale : Vector3.one;
+                Vector3 positionScale = RelativeScale ? anchorScale : Vector3.one;
                 state.Position = AnchoredTransformUtility.GetLocalPosition(worldPosition, anchorPosition, anchorRotation, positionScale);
             }
             else
@@ -102,7 +121,7 @@ namespace NetworkSync.Transform
                 state.Position = worldPosition;
             }
 
-            if (_relativeRotation)
+            if (RelativeRotation)
             {
                 state.Rotation = AnchoredTransformUtility.GetLocalRotation(worldRotation, anchorRotation);
             }
@@ -111,7 +130,7 @@ namespace NetworkSync.Transform
                 state.Rotation = worldRotation;
             }
 
-            if (_relativeScale)
+            if (RelativeScale)
             {
                 state.Scale = AnchoredTransformUtility.GetLocalScale(worldScale, anchorScale);
             }
@@ -135,63 +154,71 @@ namespace NetworkSync.Transform
 
             bool includeAll = forSynchronize || !LastSyncedState.HasValue;
 
-            if (_syncPositionX &&
+            if (SyncPositionX &&
                 (includeAll ||
-                 Mathf.Abs(current.Position.x - LastSyncedState.Value.Position.x) >= _positionThreshold))
+                 Mathf.Abs(current.Position.x - LastSyncedState.Value.Position.x) >= PositionThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasPositionX;
             }
 
-            if (_syncPositionY &&
+            if (SyncPositionY &&
                 (includeAll ||
-                 Mathf.Abs(current.Position.y - LastSyncedState.Value.Position.y) >= _positionThreshold))
+                 Mathf.Abs(current.Position.y - LastSyncedState.Value.Position.y) >= PositionThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasPositionY;
             }
 
-            if (_syncPositionZ &&
+            if (SyncPositionZ &&
                 (includeAll ||
-                 Mathf.Abs(current.Position.z - LastSyncedState.Value.Position.z) >= _positionThreshold))
+                 Mathf.Abs(current.Position.z - LastSyncedState.Value.Position.z) >= PositionThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasPositionZ;
             }
 
-            if (_syncRotation &&
+            if (SyncRotation &&
                 (includeAll ||
-                 Quaternion.Angle(current.Rotation, LastSyncedState.Value.Rotation) >= _rotationAngleThreshold))
+                 Quaternion.Angle(current.Rotation, LastSyncedState.Value.Rotation) >= RotationAngleThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasRotation;
-                if (_compressRotation)
+                if (CompressRotation)
                 {
                     payload.Flags |= NetworkTransformPayloadFlags.CompressRotation;
                 }
             }
 
-            if (_syncScaleX &&
+            if (SyncScaleX &&
                 (includeAll ||
-                 Mathf.Abs(current.Scale.x - LastSyncedState.Value.Scale.x) >= _scaleThreshold))
+                 Mathf.Abs(current.Scale.x - LastSyncedState.Value.Scale.x) >= ScaleThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasScaleX;
             }
 
-            if (_syncScaleY &&
+            if (SyncScaleY &&
                 (includeAll ||
-                 Mathf.Abs(current.Scale.y - LastSyncedState.Value.Scale.y) >= _scaleThreshold))
+                 Mathf.Abs(current.Scale.y - LastSyncedState.Value.Scale.y) >= ScaleThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasScaleY;
             }
 
-            if (_syncScaleZ &&
+            if (SyncScaleZ &&
                 (includeAll ||
-                 Mathf.Abs(current.Scale.z - LastSyncedState.Value.Scale.z) >= _scaleThreshold))
+                 Mathf.Abs(current.Scale.z - LastSyncedState.Value.Scale.z) >= ScaleThreshold))
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasScaleZ;
             }
 
-            if (current.Anchor != null && current.Anchor.NetworkObject != null)
+            NetworkBehaviour currentAnchorBehaviour = current.Anchor?.NetworkBehaviour;
+            NetworkBehaviour lastAnchorBehaviour = includeAll
+                ? null
+                : LastSyncedState.Value.Anchor?.NetworkBehaviour;
+
+            if (includeAll || currentAnchorBehaviour != lastAnchorBehaviour)
             {
                 payload.Flags |= NetworkTransformPayloadFlags.HasAnchor;
-                payload.AnchorReference = current.Anchor.NetworkObject;
+                if (currentAnchorBehaviour != null)
+                {
+                    payload.AnchorReference = currentAnchorBehaviour;
+                }
             }
 
             if (current.Teleported)
@@ -225,11 +252,10 @@ namespace NetworkSync.Transform
 
         protected override NetworkTransformState DecodePayload(in NetworkTransformPayload payload)
         {
-            NetworkTransformState state = default;
-            if (LastSyncedState.HasValue)
-            {
-                state = LastSyncedState.Value;
-            }
+            NetworkTransformState state = LastSyncedState.HasValue
+                ? LastSyncedState.Value
+                : GetState();
+
             state.Tick = payload.Tick;
             state.Teleported = payload.Teleported;
 
@@ -250,9 +276,11 @@ namespace NetworkSync.Transform
             if (payload.HasScaleZ) scale.z = payload.Scale.z;
             state.Scale = scale;
 
-            if (payload.HasAnchor && payload.AnchorReference.TryGet(out NetworkObject networkObject, NetworkManager))
+            if (payload.HasAnchor)
             {
-                state.Anchor = networkObject.GetComponent<INetworkAnchor>();
+                state.Anchor = payload.AnchorReference.TryGet(out NetworkBehaviour anchorBehaviour)
+                    ? anchorBehaviour as INetworkAnchor
+                    : null;
             }
 
             state.WorldPosition = payload.WorldPosition;
@@ -260,6 +288,44 @@ namespace NetworkSync.Transform
             state.WorldScale = payload.WorldScale;
 
             return state;
+        }
+
+        protected override void ProcessInterpolatedState(ref NetworkTransformState state)
+        {
+            if (state.Teleported) return;
+
+            state.GetPositionAndRotation(out Vector3 targetPosition, out Quaternion targetRotation);
+            Vector3 targetScale = state.GetWorldScale();
+
+            Vector3 position = targetPosition;
+            Quaternion rotation = targetRotation;
+            Vector3 scale = targetScale;
+
+            if (PositionLerpSmoothing)
+            {
+                float t = Mathf.Clamp01(Time.deltaTime / PositionMaxInterpolationTime);
+                position = Vector3.Lerp(transform.position, targetPosition, t);
+            }
+
+            if (RotationLerpSmoothing)
+            {
+                float t = Mathf.Clamp01(Time.deltaTime / RotationMaxInterpolationTime);
+                rotation = Quaternion.Slerp(transform.rotation, targetRotation, t);
+            }
+
+            if (ScaleLerpSmoothing)
+            {
+                float t = Mathf.Clamp01(Time.deltaTime / ScaleMaxInterpolationTime);
+                scale = Vector3.Lerp(transform.localScale, targetScale, t);
+            }
+
+            state.Anchor = null;
+            state.Position = position;
+            state.Rotation = rotation;
+            state.Scale = scale;
+            state.WorldPosition = true;
+            state.WorldRotation = true;
+            state.WorldScale = true;
         }
 
         protected override void SetState(in NetworkTransformState state)
@@ -273,7 +339,10 @@ namespace NetworkSync.Transform
         {
             if (to.Teleported) return from;
 
-            if (from.Anchor?.NetworkObject == to.Anchor?.NetworkObject)
+            // Carry Teleported from older sample so second-pass smoothing snaps across the jump.
+            bool teleported = from.Teleported;
+
+            if (from.Anchor?.NetworkBehaviour == to.Anchor?.NetworkBehaviour)
             {
                 return new NetworkTransformState
                 {
@@ -284,7 +353,8 @@ namespace NetworkSync.Transform
                     Scale = Vector3.Lerp(from.Scale, to.Scale, t),
                     WorldPosition = to.WorldPosition,
                     WorldRotation = to.WorldRotation,
-                    WorldScale = to.WorldScale
+                    WorldScale = to.WorldScale,
+                    Teleported = teleported
                 };
             }
 
@@ -300,28 +370,9 @@ namespace NetworkSync.Transform
                 Scale = Vector3.Lerp(from.GetWorldScale(), to.GetWorldScale(), t),
                 WorldPosition = true,
                 WorldRotation = true,
-                WorldScale = true
+                WorldScale = true,
+                Teleported = teleported
             };
         }
-
-#if UNITY_EDITOR
-        public static class PropertyNames
-        {
-            public const string SyncPositionX = nameof(_syncPositionX);
-            public const string SyncPositionY = nameof(_syncPositionY);
-            public const string SyncPositionZ = nameof(_syncPositionZ);
-            public const string SyncRotation = nameof(_syncRotation);
-            public const string CompressRotation = nameof(_compressRotation);
-            public const string SyncScaleX = nameof(_syncScaleX);
-            public const string SyncScaleY = nameof(_syncScaleY);
-            public const string SyncScaleZ = nameof(_syncScaleZ);
-            public const string PositionThreshold = nameof(_positionThreshold);
-            public const string RotationAngleThreshold = nameof(_rotationAngleThreshold);
-            public const string ScaleThreshold = nameof(_scaleThreshold);
-            public const string RelativePosition = nameof(_relativePosition);
-            public const string RelativeRotation = nameof(_relativeRotation);
-            public const string RelativeScale = nameof(_relativeScale);
-        }
-#endif
     }
 }
