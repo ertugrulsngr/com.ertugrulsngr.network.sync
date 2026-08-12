@@ -1,6 +1,6 @@
 # Network Sync
 
-Built on top of [Netcode for GameObjects](https://docs-multiplayer.unity3d.com/), this package provides synchronization components and shared network services for networked gameplay.
+**Network Sync** is a Unity package built on top of [Netcode for GameObjects](https://docs-multiplayer.unity3d.com/). It provides synchronization components and shared network services for networked gameplay.
 
 ## Quick start
 
