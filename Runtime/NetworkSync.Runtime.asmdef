@@ -1,0 +1,17 @@
+{
+    "name": "NetworkSync.Runtime",
+    "rootNamespace": "NetworkSync",
+    "references": [
+        "Unity.Netcode.Runtime",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
