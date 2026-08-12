@@ -77,9 +77,9 @@ Key hooks: `SendTick`, `InterpolationTick`, `Interpolate`, `ProcessInterpolatedS
 
 Transform sync built on the interpolated layer:
 
-- Position / rotation / scale with per-axis sync and thresholds (delta-style payloads)
-- Optional compressed rotation, anchors, teleport flag
-- Remote second-pass lerp smoothing toward the interpolated sample
+- Position / rotation / scale with per-axis sync, thresholds, and many inspector options
+- Works **with or without parenting**: sync in world space, or relative to an `INetworkAnchor` (any networked object that implements the interface — does not require Unity parenting)
+- Optional compressed rotation, teleport flag, and remote lerp smoothing
 
 Customize by subclassing and overriding the same virtual methods (for example `GetState`, `EncodeState`, `Interpolate`, `ProcessInterpolatedState`).
 
@@ -95,3 +95,11 @@ The stack is designed so behaviour is easy to change without rewriting the pipel
 - Interpolation: `Interpolate`, `InterpolationTick`, `OnNetworkTick`
 
 Start from `NetworkTransformSync` for transforms, or from `InterpolatedNetworkStateSync` / `NetworkStateSync` for custom state types.
+
+---
+
+## Demo
+
+[![Network Sync demo](https://img.youtube.com/vi/3yN3nN8jCNw/0.jpg)](https://youtu.be/3yN3nN8jCNw)
+
+[Watch on YouTube](https://youtu.be/3yN3nN8jCNw)
