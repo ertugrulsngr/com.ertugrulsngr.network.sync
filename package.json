@@ -2,7 +2,7 @@
   "name": "com.ertugrulsngr.network.sync",
   "version": "0.1.0",
   "displayName": "Network Sync",
-  "description": "",
+  "description": "Synchronization components and network services built on Netcode for GameObjects.",
   "unity": "6000.4",
   "dependencies": {
     "com.unity.netcode.gameobjects": "2.13.1"
