@@ -23,7 +23,8 @@ namespace NetworkSync.Core
 
         private int _forcedStateTick = int.MinValue;
         private int _ticksSinceSend;
-        private NetworkUpdateStage _interpolationStage = NetworkUpdateStage.Update;
+
+        private NetworkUpdateStage _interpolationStage = NetworkUpdateStage.PostScriptLateUpdate;
 
         /// <summary>The update stage used for interpolation.</summary>
         public NetworkUpdateStage InterpolationStage
@@ -128,8 +129,10 @@ namespace NetworkSync.Core
         {
             this.UnregisterNetworkUpdate(_interpolationStage);
 
-            if (NetworkSyncManager.Instance == null || NetworkSyncManager.Instance.TimeService == null) return;
-            NetworkSyncManager.Instance.TimeService.Tick -= OnNetworkTick;
+            if (NetworkSyncManager.Instance != null && NetworkSyncManager.Instance.TimeService != null)
+            {
+                NetworkSyncManager.Instance.TimeService.Tick -= OnNetworkTick;
+            }
         }
 
         /// <summary>Applies a state.</summary>
@@ -162,7 +165,7 @@ namespace NetworkSync.Core
             }
         }
 
-        /// <summary>Optional post-interpolate processing before <see cref="SetState"/> (e.g. visual smoothing).</summary>
+        /// <summary>Optional post-interpolate processing before <see cref="SetState"/></summary>
         protected virtual void ProcessInterpolatedState(ref TState state)
         {
         }
@@ -183,5 +186,6 @@ namespace NetworkSync.Core
             state = Interpolate(older, newer, blendFactor);
             return true;
         }
+
     }
 }

@@ -61,14 +61,12 @@ namespace NetworkSync.Core
                     payload = EncodeState(LastSyncedState.Value, forSynchronize: true);
                 }
             }
-
             serializer.SerializeValue(ref hasState);
-
             if (hasState)
             {
                 serializer.SerializeNetworkSerializable(ref payload);
             }
-
+            
             if (serializer.IsReader && hasState)
             {
                 LastSyncedState = DecodePayload(payload);

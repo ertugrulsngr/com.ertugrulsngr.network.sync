@@ -9,9 +9,9 @@ namespace NetworkSync.Transform
     {
         None = 0,
 
-        WorldPosition = 1 << 0,
-        WorldRotation = 1 << 1,
-        WorldScale = 1 << 2,
+        IsWorldPosition = 1 << 0,
+        IsWorldRotation = 1 << 1,
+        IsWorldScale = 1 << 2,
 
         HasAnchor = 1 << 3,
 
@@ -28,7 +28,7 @@ namespace NetworkSync.Transform
 
         Teleported = 1 << 12,
 
-        WorldAll = WorldPosition | WorldRotation | WorldScale,
+        IsWorldAll = IsWorldPosition | IsWorldRotation | IsWorldScale,
         HasPosition = HasPositionX | HasPositionY | HasPositionZ,
         HasScale = HasScaleX | HasScaleY | HasScaleZ
     }
@@ -42,9 +42,9 @@ namespace NetworkSync.Transform
         public Vector3 Scale;
         public NetworkBehaviourReference AnchorReference;
 
-        public bool WorldPosition => (Flags & NetworkTransformPayloadFlags.WorldPosition) != 0;
-        public bool WorldRotation => (Flags & NetworkTransformPayloadFlags.WorldRotation) != 0;
-        public bool WorldScale => (Flags & NetworkTransformPayloadFlags.WorldScale) != 0;
+        public bool IsWorldPosition => (Flags & NetworkTransformPayloadFlags.IsWorldPosition) != 0;
+        public bool IsWorldRotation => (Flags & NetworkTransformPayloadFlags.IsWorldRotation) != 0;
+        public bool IsWorldScale => (Flags & NetworkTransformPayloadFlags.IsWorldScale) != 0;
         public bool HasAnchor => (Flags & NetworkTransformPayloadFlags.HasAnchor) != 0;
         public bool HasPositionX => (Flags & NetworkTransformPayloadFlags.HasPositionX) != 0;
         public bool HasPositionY => (Flags & NetworkTransformPayloadFlags.HasPositionY) != 0;

@@ -13,9 +13,9 @@ namespace NetworkSync.Transform
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Scale;
-        public bool WorldPosition;
-        public bool WorldRotation;
-        public bool WorldScale;
+        public bool IsWorldPosition;
+        public bool IsWorldRotation;
+        public bool IsWorldScale;
         public bool Teleported;
 
         /// <summary>Gets world-space position and world-space rotation.</summary>
@@ -30,17 +30,17 @@ namespace NetworkSync.Transform
 
             Anchor.GetPositionAndRotation(out Vector3 anchorPosition, out Quaternion anchorRotation);
 
-            if (WorldPosition)
+            if (IsWorldPosition)
             {
                 worldPosition = Position;
             }
             else
             {
-                Vector3 anchorScale = WorldScale ? Vector3.one : Anchor.GetWorldScale();
+                Vector3 anchorScale = IsWorldScale ? Vector3.one : Anchor.GetWorldScale();
                 worldPosition = AnchoredTransformUtility.GetWorldPosition(Position, anchorPosition, anchorRotation, anchorScale);
             }
 
-            if (WorldRotation)
+            if (IsWorldRotation)
             {
                 worldRotation = Rotation;
             }
@@ -53,7 +53,7 @@ namespace NetworkSync.Transform
         /// <summary>Gets world-space scale.</summary>
         public readonly Vector3 GetWorldScale()
         {
-            if (Anchor?.NetworkBehaviour != null && !WorldScale)
+            if (Anchor?.NetworkBehaviour != null && !IsWorldScale)
             {
                 return AnchoredTransformUtility.GetWorldScale(Scale, Anchor.GetWorldScale());
             }

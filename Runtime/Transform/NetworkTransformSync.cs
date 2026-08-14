@@ -28,24 +28,29 @@ namespace NetworkSync.Transform
         public bool RelativeScale = true;
 
         [Tooltip("Lerp rendered position toward the interpolated sample (NGO LegacyLerp style).")]
-        public bool PositionLerpSmoothing = true;
+        public bool SmoothPosition = true;
         [Min(0.001f)]
         [Tooltip("Seconds to close most of the gap to the interpolated position target.")]
-        public float PositionMaxInterpolationTime = 0.1f;
+        public float PositionSmoothTime = 0.1f;
 
         [Tooltip("Slerp rendered rotation toward the interpolated sample.")]
-        public bool RotationLerpSmoothing = true;
+        public bool SmoothRotation = true;
         [Min(0.001f)]
         [Tooltip("Seconds to close most of the gap to the interpolated rotation target.")]
-        public float RotationMaxInterpolationTime = 0.1f;
+        public float RotationSmoothTime = 0.1f;
 
         [Tooltip("Lerp rendered scale toward the interpolated sample.")]
-        public bool ScaleLerpSmoothing = true;
+        public bool SmoothScale = true;
         [Min(0.001f)]
         [Tooltip("Seconds to close most of the gap to the interpolated scale target.")]
-        public float ScaleMaxInterpolationTime = 0.1f;
+        public float ScaleSmoothTime = 0.1f;
 
         public INetworkAnchor Anchor { get; set; }
+
+        /// <summary>When true, authority binds <see cref="Anchor"/> from the network parent.</summary>
+        public bool AutoAnchorFromParent = true;
+
+        private NetworkTransformState? _lastSetState;
 
         /// <summary>When true, the next send is marked teleported, then this is cleared.</summary>
         public bool Teleported { get; set; }
@@ -63,6 +68,18 @@ namespace NetworkSync.Transform
             return transform.lossyScale;
         }
 
+        /// <summary>On authority, binds the anchor to the new parent (or clears it when unparented).</summary>
+        public override void OnNetworkObjectParentChanged(NetworkObject parentNetworkObject)
+        {
+            base.OnNetworkObjectParentChanged(parentNetworkObject);
+
+            if (!AutoAnchorFromParent || !IsLocalAuthority) return;
+
+            Anchor = parentNetworkObject != null
+                ? parentNetworkObject.GetComponent<INetworkAnchor>()
+                : null;
+        }
+
         /// <summary>Clamps and monotonically restamps client tick before reliable relay.</summary>
         protected override bool ServerValidatePayload(ref NetworkTransformPayload payload, ulong senderClientId)
         {
@@ -72,6 +89,8 @@ namespace NetworkSync.Transform
             int lastRelayedTick = LastSyncedState?.Tick ?? -1;
 
             if (tick < serverTick) tick = serverTick;
+            
+            // This is only true if states are reliable and ordered. If not check must be removed.
             if (tick <= lastRelayedTick) tick = lastRelayedTick + 1;
             if (tick > maxAllowedTick) tick = maxAllowedTick;
                 
@@ -97,9 +116,9 @@ namespace NetworkSync.Transform
                 state.Position = worldPosition;
                 state.Rotation = worldRotation;
                 state.Scale = worldScale;
-                state.WorldPosition = true;
-                state.WorldRotation = true;
-                state.WorldScale = true;
+                state.IsWorldPosition = true;
+                state.IsWorldRotation = true;
+                state.IsWorldScale = true;
                 return state;
             }
 
@@ -107,9 +126,9 @@ namespace NetworkSync.Transform
             Vector3 anchorScale = Anchor.GetWorldScale();
 
             state.Anchor = Anchor;
-            state.WorldPosition = !RelativePosition;
-            state.WorldRotation = !RelativeRotation;
-            state.WorldScale = !RelativeScale;
+            state.IsWorldPosition = !RelativePosition;
+            state.IsWorldRotation = !RelativeRotation;
+            state.IsWorldScale = !RelativeScale;
 
             if (RelativePosition)
             {
@@ -120,25 +139,8 @@ namespace NetworkSync.Transform
             {
                 state.Position = worldPosition;
             }
-
-            if (RelativeRotation)
-            {
-                state.Rotation = AnchoredTransformUtility.GetLocalRotation(worldRotation, anchorRotation);
-            }
-            else
-            {
-                state.Rotation = worldRotation;
-            }
-
-            if (RelativeScale)
-            {
-                state.Scale = AnchoredTransformUtility.GetLocalScale(worldScale, anchorScale);
-            }
-            else
-            {
-                state.Scale = worldScale;
-            }
-
+            state.Rotation = RelativeRotation ? AnchoredTransformUtility.GetLocalRotation(worldRotation, anchorRotation) : worldRotation;
+            state.Scale = RelativeScale ? AnchoredTransformUtility.GetLocalScale(worldScale, anchorScale) : worldScale;
             return state;
         }
 
@@ -227,19 +229,19 @@ namespace NetworkSync.Transform
                 Teleported = false;
             }
 
-            if (current.WorldPosition)
+            if (current.IsWorldPosition)
             {
-                payload.Flags |= NetworkTransformPayloadFlags.WorldPosition;
+                payload.Flags |= NetworkTransformPayloadFlags.IsWorldPosition;
             }
 
-            if (current.WorldRotation)
+            if (current.IsWorldRotation)
             {
-                payload.Flags |= NetworkTransformPayloadFlags.WorldRotation;
+                payload.Flags |= NetworkTransformPayloadFlags.IsWorldRotation;
             }
 
-            if (current.WorldScale)
+            if (current.IsWorldScale)
             {
-                payload.Flags |= NetworkTransformPayloadFlags.WorldScale;
+                payload.Flags |= NetworkTransformPayloadFlags.IsWorldScale;
             }
 
             return payload;
@@ -252,9 +254,7 @@ namespace NetworkSync.Transform
 
         protected override NetworkTransformState DecodePayload(in NetworkTransformPayload payload)
         {
-            NetworkTransformState state = LastSyncedState.HasValue
-                ? LastSyncedState.Value
-                : GetState();
+            NetworkTransformState state = LastSyncedState ?? GetState();
 
             state.Tick = payload.Tick;
             state.Teleported = payload.Teleported;
@@ -283,49 +283,26 @@ namespace NetworkSync.Transform
                     : null;
             }
 
-            state.WorldPosition = payload.WorldPosition;
-            state.WorldRotation = payload.WorldRotation;
-            state.WorldScale = payload.WorldScale;
+            state.IsWorldPosition = payload.IsWorldPosition;
+            state.IsWorldRotation = payload.IsWorldRotation;
+            state.IsWorldScale = payload.IsWorldScale;
 
             return state;
         }
 
         protected override void ProcessInterpolatedState(ref NetworkTransformState state)
         {
-            if (state.Teleported) return;
+            if (state.Teleported || !_lastSetState.HasValue) return;
 
-            state.GetPositionAndRotation(out Vector3 targetPosition, out Quaternion targetRotation);
-            Vector3 targetScale = state.GetWorldScale();
+            float deltaTime = Time.deltaTime;
+            float positionT = SmoothPosition ? Mathf.Clamp01(deltaTime / PositionSmoothTime) : 1f;
+            float rotationT = SmoothRotation ? Mathf.Clamp01(deltaTime / RotationSmoothTime) : 1f;
+            float scaleT = SmoothScale ? Mathf.Clamp01(deltaTime / ScaleSmoothTime) : 1f;
 
-            Vector3 position = targetPosition;
-            Quaternion rotation = targetRotation;
-            Vector3 scale = targetScale;
-
-            if (PositionLerpSmoothing)
-            {
-                float t = Mathf.Clamp01(Time.deltaTime / PositionMaxInterpolationTime);
-                position = Vector3.Lerp(transform.position, targetPosition, t);
-            }
-
-            if (RotationLerpSmoothing)
-            {
-                float t = Mathf.Clamp01(Time.deltaTime / RotationMaxInterpolationTime);
-                rotation = Quaternion.Slerp(transform.rotation, targetRotation, t);
-            }
-
-            if (ScaleLerpSmoothing)
-            {
-                float t = Mathf.Clamp01(Time.deltaTime / ScaleMaxInterpolationTime);
-                scale = Vector3.Lerp(transform.localScale, targetScale, t);
-            }
-
-            state.Anchor = null;
-            state.Position = position;
-            state.Rotation = rotation;
-            state.Scale = scale;
-            state.WorldPosition = true;
-            state.WorldRotation = true;
-            state.WorldScale = true;
+            // Re-express the last rendered pose in the target's space so smoothing always lerps in
+            // one consistent space: filters the network offset without lagging the anchor's motion.
+            NetworkTransformState from = ExpressInSpaceOf(_lastSetState.Value, state);
+            state = InterpolateState(from, state, positionT, rotationT, scaleT);
         }
 
         protected override void SetState(in NetworkTransformState state)
@@ -333,46 +310,111 @@ namespace NetworkSync.Transform
             state.GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation);
             transform.SetPositionAndRotation(worldPosition, worldRotation);
             transform.localScale = state.GetWorldScale();
+            _lastSetState = state;
         }
 
         protected override NetworkTransformState Interpolate(in NetworkTransformState from, in NetworkTransformState to, float t)
         {
             if (to.Teleported) return from;
 
+            NetworkTransformState result = InterpolateState(from, to, t, t, t);
             // Carry Teleported from older sample so second-pass smoothing snaps across the jump.
-            bool teleported = from.Teleported;
+            result.Teleported = from.Teleported;
+            return result;
+        }
 
-            if (from.Anchor?.NetworkBehaviour == to.Anchor?.NetworkBehaviour)
-            {
-                return new NetworkTransformState
-                {
-                    Tick = to.Tick,
-                    Anchor = from.Anchor,
-                    Position = Vector3.Lerp(from.Position, to.Position, t),
-                    Rotation = Quaternion.Slerp(from.Rotation, to.Rotation, t),
-                    Scale = Vector3.Lerp(from.Scale, to.Scale, t),
-                    WorldPosition = to.WorldPosition,
-                    WorldRotation = to.WorldRotation,
-                    WorldScale = to.WorldScale,
-                    Teleported = teleported
-                };
-            }
+        /// <summary>
+        /// Lerps between two states, deciding the coordinate space per channel. A channel is lerped in
+        /// anchor-local space when both states share the same anchor and both store that channel locally
+        /// (so anchor motion is preserved); otherwise that channel is resolved to world space first.
+        /// </summary>
+        private static NetworkTransformState InterpolateState(
+            in NetworkTransformState from,
+            in NetworkTransformState to,
+            float positionT,
+            float rotationT,
+            float scaleT)
+        {
+            bool sameAnchor = from.Anchor?.NetworkBehaviour == to.Anchor?.NetworkBehaviour;
+            bool useLocalPosition = sameAnchor &&
+                                    !from.IsWorldPosition &&
+                                    !to.IsWorldPosition &&
+                                    from.IsWorldScale == to.IsWorldScale;
+            bool useLocalRotation = sameAnchor && !from.IsWorldRotation && !to.IsWorldRotation;
+            bool useLocalScale = sameAnchor && !from.IsWorldScale && !to.IsWorldScale;
 
             from.GetPositionAndRotation(out Vector3 fromWorldPosition, out Quaternion fromWorldRotation);
             to.GetPositionAndRotation(out Vector3 toWorldPosition, out Quaternion toWorldRotation);
 
+            Vector3 position = useLocalPosition
+                ? Vector3.Lerp(from.Position, to.Position, positionT)
+                : Vector3.Lerp(fromWorldPosition, toWorldPosition, positionT);
+
+            Quaternion rotation = useLocalRotation
+                ? Quaternion.Slerp(from.Rotation, to.Rotation, rotationT)
+                : Quaternion.Slerp(fromWorldRotation, toWorldRotation, rotationT);
+
+            Vector3 scale = useLocalScale
+                ? Vector3.Lerp(from.Scale, to.Scale, scaleT)
+                : Vector3.Lerp(from.GetWorldScale(), to.GetWorldScale(), scaleT);
+
             return new NetworkTransformState
             {
                 Tick = to.Tick,
-                Anchor = null,
-                Position = Vector3.Lerp(fromWorldPosition, toWorldPosition, t),
-                Rotation = Quaternion.Slerp(fromWorldRotation, toWorldRotation, t),
-                Scale = Vector3.Lerp(from.GetWorldScale(), to.GetWorldScale(), t),
-                WorldPosition = true,
-                WorldRotation = true,
-                WorldScale = true,
-                Teleported = teleported
+                Anchor = to.Anchor,
+                Position = position,
+                Rotation = rotation,
+                Scale = scale,
+                IsWorldPosition = !useLocalPosition,
+                IsWorldRotation = !useLocalRotation,
+                IsWorldScale = !useLocalScale
             };
+        }
+
+        /// <summary>
+        /// Returns <paramref name="source"/> re-expressed in <paramref name="target"/>'s coordinate space:
+        /// the same world pose, described with the target's anchor and world/local flags.
+        /// </summary>
+        private static NetworkTransformState ExpressInSpaceOf(
+            in NetworkTransformState source,
+            in NetworkTransformState target)
+        {
+            source.GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation);
+            Vector3 worldScale = source.GetWorldScale();
+
+            NetworkTransformState result = source;
+            result.Anchor = target.Anchor;
+            result.IsWorldPosition = target.IsWorldPosition;
+            result.IsWorldRotation = target.IsWorldRotation;
+            result.IsWorldScale = target.IsWorldScale;
+
+            INetworkAnchor anchor = target.Anchor;
+            if (anchor?.NetworkBehaviour == null)
+            {
+                result.Position = worldPosition;
+                result.Rotation = worldRotation;
+                result.Scale = worldScale;
+                return result;
+            }
+
+            anchor.GetPositionAndRotation(out Vector3 anchorPosition, out Quaternion anchorRotation);
+            Vector3 anchorScale = anchor.GetWorldScale();
+
+            result.Position = target.IsWorldPosition
+                ? worldPosition
+                : AnchoredTransformUtility.GetLocalPosition(
+                    worldPosition, anchorPosition, anchorRotation,
+                    target.IsWorldScale ? Vector3.one : anchorScale);
+
+            result.Rotation = target.IsWorldRotation
+                ? worldRotation
+                : AnchoredTransformUtility.GetLocalRotation(worldRotation, anchorRotation);
+
+            result.Scale = target.IsWorldScale
+                ? worldScale
+                : AnchoredTransformUtility.GetLocalScale(worldScale, anchorScale);
+
+            return result;
         }
     }
 }
