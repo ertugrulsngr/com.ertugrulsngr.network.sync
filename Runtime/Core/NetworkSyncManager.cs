@@ -19,6 +19,9 @@ namespace NetworkSync.Core
         /// <summary>Raised when the local network session ends.</summary>
         public event Action SessionDestroyed;
 
+        /// <summary>Raised when the local peer finishes session synchronization.</summary>
+        public event Action SessionSynchronized;
+
         [SerializeField]
         private TimingSettings _timingSettings = new TimingSettings();
 
@@ -37,6 +40,9 @@ namespace NetworkSync.Core
 
         /// <summary>Whether a network session is currently active.</summary>
         public bool IsSessionActive => _sessionActive;
+
+        /// <summary>Whether the local peer finished session synchronization. True immediately on a server.</summary>
+        public bool IsSessionSynchronized { get; private set; }
 
         private void Awake()
         {
@@ -100,6 +106,11 @@ namespace NetworkSync.Core
             _timeService.OnSessionStart(networkManager);
 
             SessionCreated?.Invoke();
+
+            if (networkManager.IsServer)
+            {
+                MarkSessionSynchronized();
+            }
         }
 
         private void HandleSessionStop(bool isHost)
@@ -107,6 +118,7 @@ namespace NetworkSync.Core
             if (!_sessionActive) return;
 
             _sessionActive = false;
+            IsSessionSynchronized = false;
             NetworkManager networkManager = NetworkManager.Singleton;
             UnregisterSessionCallbacks(networkManager);
 
@@ -134,6 +146,19 @@ namespace NetworkSync.Core
         private void HandleClientConnected(ulong clientId)
         {
             _latencyService.OnClientConnected(clientId);
+
+            if (clientId == NetworkManager.Singleton.LocalClientId)
+            {
+                MarkSessionSynchronized();
+            }
+        }
+
+        private void MarkSessionSynchronized()
+        {
+            if (IsSessionSynchronized) return;
+
+            IsSessionSynchronized = true;
+            SessionSynchronized?.Invoke();
         }
 
         private void HandleClientDisconnected(ulong clientId)

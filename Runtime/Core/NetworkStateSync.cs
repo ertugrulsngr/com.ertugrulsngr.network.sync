@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Netcode;
 
 namespace NetworkSync.Core
@@ -8,6 +9,15 @@ namespace NetworkSync.Core
         where TState : struct
         where TPayload : struct, INetworkSerializable
     {
+        /// <summary>Payloads received via RPC before synchronization completes, in arrival order.</summary>
+        private readonly List<TPayload> _initialPendingPayloads = new List<TPayload>();
+
+        /// <summary>Synchronization payload kept until synchronization completes, so it can be decoded again.</summary>
+        private TPayload? _initialSynchronizationPayload;
+
+        /// <summary>Whether initial synchronization is complete.</summary>
+        public bool IsSynchronizationComplete { get; private set; } = false;
+
         /// <summary>Last state that was successfully synced (sent or received).</summary>
         protected TState? LastSyncedState { get; private set; }
 
@@ -41,6 +51,36 @@ namespace NetworkSync.Core
             SetState(state);
         }
 
+        /// <summary>Called after initial synchronization is complete.</summary>
+        protected virtual void OnSynchronizationComplete()
+        {
+        }
+
+        private void InternalOnSynchronizationComplete()
+        {
+            if (IsSynchronizationComplete) return;
+
+            IsSynchronizationComplete = true;
+
+            // Decode again now that the session is fully synchronized.
+            if (_initialSynchronizationPayload.HasValue)
+            {
+                LastSyncedState = DecodePayload(_initialSynchronizationPayload.Value);
+                _initialSynchronizationPayload = null;
+            }
+
+            for (int i = 0; i < _initialPendingPayloads.Count; i++)
+            {
+                TState state = DecodePayload(_initialPendingPayloads[i]);
+                LastSyncedState = state;
+                OnStateReceived(state);
+            }
+
+            _initialPendingPayloads.Clear();
+
+            OnSynchronizationComplete();
+        }
+
         /// <summary>Whether the payload should be sent. Defaults to true.</summary>
         protected virtual bool ShouldSendPayload(in TPayload payload)
         {
@@ -67,12 +107,54 @@ namespace NetworkSync.Core
                 serializer.SerializeNetworkSerializable(ref payload);
             }
             
-            if (serializer.IsReader && hasState)
+            if (serializer.IsReader)
             {
-                LastSyncedState = DecodePayload(payload);
+                if (hasState)
+                {
+                    LastSyncedState = DecodePayload(payload);
+                    _initialSynchronizationPayload = payload;
+                }
             }
 
             base.OnSynchronize(ref serializer);
+        }
+
+        public sealed override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            OnSpawned();
+            if (NetworkSyncManager.Instance.IsSessionSynchronized)
+            {
+                InternalOnSynchronizationComplete();
+            }
+        }
+
+        public sealed override void OnNetworkDespawn()
+        {
+            OnDespawning();
+
+            IsSynchronizationComplete = false;
+            _initialSynchronizationPayload = null;
+            _initialPendingPayloads.Clear();
+            LastSyncedState = null;
+
+            base.OnNetworkDespawn();
+        }
+
+        /// <summary>Called during network spawn.</summary>
+        protected virtual void OnSpawned()
+        {
+        }
+
+        /// <summary>Called during network despawn.</summary>
+        protected virtual void OnDespawning()
+        {
+        }
+
+        protected override void OnNetworkSessionSynchronized()
+        {
+            InternalOnSynchronizationComplete();
+            base.OnNetworkSessionSynchronized();
         }
 
         /// <summary>Encodes and sends the current state.</summary>
@@ -119,6 +201,12 @@ namespace NetworkSync.Core
         [Rpc(SendTo.SpecifiedInParams)]
         private void BroadcastStateRpc(TPayload payload, RpcParams rpcParams = default)
         {
+            if (!IsSynchronizationComplete)
+            {
+                _initialPendingPayloads.Add(payload);
+                return;
+            }
+
             TState state = DecodePayload(payload);
             LastSyncedState = state;
             OnStateReceived(state);

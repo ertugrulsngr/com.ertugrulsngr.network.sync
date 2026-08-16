@@ -55,6 +55,14 @@ namespace NetworkSync.Transform
         /// <summary>When true, the next send is marked teleported, then this is cleared.</summary>
         public bool Teleported { get; set; }
 
+        protected override void OnDespawning()
+        {
+            Anchor = null;
+            _lastSetState = null;
+            Teleported = false;
+            base.OnDespawning();
+        }
+
         /// <summary>On authority, binds the anchor to the new parent (or clears it when unparented).</summary>
         public override void OnNetworkObjectParentChanged(NetworkObject parentNetworkObject)
         {

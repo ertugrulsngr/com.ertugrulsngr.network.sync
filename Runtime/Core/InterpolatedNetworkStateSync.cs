@@ -50,21 +50,26 @@ namespace NetworkSync.Core
             base.OnDisable();
         }
 
-        public override void OnNetworkSpawn()
+        protected override void OnSpawned()
         {
-            base.OnNetworkSpawn();
+            base.OnSpawned();
+            RegisterInterpolationCallback();
+        }
+
+        protected override void OnSynchronizationComplete()
+        {
+            base.OnSynchronizationComplete();
+
             if (!IsLocalAuthority && LastSyncedState.HasValue)
             {
                 SetState(LastSyncedState.Value);
             }
-
-            RegisterInterpolationCallback();
         }
 
-        public override void OnNetworkDespawn()
+        protected override void OnDespawning()
         {
             UnregisterInterpolationCallback();
-            base.OnNetworkDespawn();
+            base.OnDespawning();
         }
 
         public void NetworkUpdate(NetworkUpdateStage updateStage)

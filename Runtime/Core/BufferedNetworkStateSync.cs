@@ -48,22 +48,29 @@ namespace NetworkSync.Core
             UnregisterBufferCallbacks();
         }
 
-        public override void OnNetworkSpawn()
+        protected override void OnSpawned()
         {
-            base.OnNetworkSpawn();
+            base.OnSpawned();
+            RegisterBufferCallbacks();
+        }
+
+        protected override void OnSynchronizationComplete()
+        {
+            base.OnSynchronizationComplete();
 
             if (!IsLocalAuthority && LastSyncedState.HasValue)
             {
                 NetworkStateBuffer.TryAdd(LastSyncedState.Value);
             }
-
-            RegisterBufferCallbacks();
         }
 
-        public override void OnNetworkDespawn()
+        protected override void OnDespawning()
         {
             UnregisterBufferCallbacks();
-            base.OnNetworkDespawn();
+            NetworkStateBuffer.Clear();
+            _forcedStateTick = int.MinValue;
+            _ticksSinceSend = 0;
+            base.OnDespawning();
         }
 
         /// <summary>Called each network tick. Default sends from authority on the configured interval.</summary>
