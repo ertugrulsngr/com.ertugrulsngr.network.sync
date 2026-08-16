@@ -70,7 +70,7 @@ namespace NetworkSync.Transform
         /// <summary>Clamps and monotonically restamps client tick before reliable relay.</summary>
         protected override bool ServerValidatePayload(ref NetworkTransformPayload payload, ulong senderClientId)
         {
-            int serverTick = SendTick;
+            int serverTick = AuthoritativeTick;
             int tick = payload.Tick;
             int maxAllowedTick = serverTick + MaxClientTickAhead;
             int lastRelayedTick = LastSyncedState?.Tick ?? -1;
@@ -93,7 +93,7 @@ namespace NetworkSync.Transform
 
             NetworkTransformState state = new NetworkTransformState
             {
-                Tick = SendTick,
+                Tick = AuthoritativeTick,
                 Teleported = Teleported
             };
 

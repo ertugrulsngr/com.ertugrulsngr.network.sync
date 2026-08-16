@@ -11,11 +11,11 @@ namespace NetworkSync.Core
         /// <summary>Last state that was successfully synced (sent or received).</summary>
         protected TState? LastSyncedState { get; private set; }
 
+        /// <summary>Client id that has authority over this object. Defaults to the network object owner.</summary>
+        public virtual ulong AuthoritativeClientId => OwnerClientId;
+
         /// <summary>Whether the given client has authority over this object.</summary>
-        public virtual bool IsAuthority(ulong clientId)
-        {
-            return clientId == OwnerClientId;
-        }
+        public bool IsAuthority(ulong clientId) => clientId == AuthoritativeClientId;
 
         /// <summary>Whether the local client has authority.</summary>
         public bool IsLocalAuthority => IsAuthority(NetworkManager.LocalClientId);

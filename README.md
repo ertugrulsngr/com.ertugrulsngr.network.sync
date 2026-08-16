@@ -52,7 +52,7 @@ Common override points:
 
 | Concern | Hooks |
 |---------|-------|
-| **Authority** | `IsAuthority`, `GetState`, `ShouldSendPayload`, `SendTick` |
+| **Authority** | `IsAuthority`, `GetState`, `ShouldSendPayload`, `AuthoritativeTick` |
 | **Wire format** | `EncodeState`, `DecodePayload`, `ServerValidatePayload` |
 | **Apply path** | `OnStateReceived`, `SetState`, `ProcessInterpolatedState` |
 | **Interpolation** | `Interpolate`, `InterpolationTick`, `OnNetworkTick` |
