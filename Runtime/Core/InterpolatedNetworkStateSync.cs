@@ -136,7 +136,7 @@ namespace NetworkSync.Core
         }
 
         /// <summary>Applies a state.</summary>
-        protected abstract override void SetState(in TState state);
+        public abstract override void SetState(in TState state);
 
         /// <summary>Forces a state now and ignores buffered states until a newer tick arrives.</summary>
         public void ForceStateUntilNewer(in TState state)
@@ -150,7 +150,6 @@ namespace NetworkSync.Core
         protected override void OnStateReceived(in TState state)
         {
             if (state.Tick <= _forcedStateTick) return;
-
             Buffer.TryAdd(state);
         }
 

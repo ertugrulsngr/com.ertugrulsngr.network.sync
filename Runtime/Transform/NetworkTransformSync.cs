@@ -55,19 +55,6 @@ namespace NetworkSync.Transform
         /// <summary>When true, the next send is marked teleported, then this is cleared.</summary>
         public bool Teleported { get; set; }
 
-        /// <inheritdoc />
-        public NetworkBehaviour NetworkBehaviour => this;
-
-        public void GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation)
-        {
-            transform.GetPositionAndRotation(out worldPosition, out worldRotation);
-        }
-
-        public Vector3 GetWorldScale()
-        {
-            return transform.lossyScale;
-        }
-
         /// <summary>On authority, binds the anchor to the new parent (or clears it when unparented).</summary>
         public override void OnNetworkObjectParentChanged(NetworkObject parentNetworkObject)
         {
@@ -99,10 +86,10 @@ namespace NetworkSync.Transform
             return true;
         }
 
-        protected override NetworkTransformState GetState()
+        public override NetworkTransformState GetState()
         {
-            GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation);
-            Vector3 worldScale = GetWorldScale();
+            transform.GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation);
+            Vector3 worldScale = transform.lossyScale;
 
             NetworkTransformState state = new NetworkTransformState
             {
@@ -305,7 +292,7 @@ namespace NetworkSync.Transform
             state = InterpolateState(from, state, positionT, rotationT, scaleT);
         }
 
-        protected override void SetState(in NetworkTransformState state)
+        public override void SetState(in NetworkTransformState state)
         {
             state.GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation);
             transform.SetPositionAndRotation(worldPosition, worldRotation);
@@ -322,6 +309,22 @@ namespace NetworkSync.Transform
             result.Teleported = from.Teleported;
             return result;
         }
+
+        #region INetworkAnchor Implementation
+
+        NetworkBehaviour INetworkAnchor.NetworkBehaviour => this;
+
+        void INetworkAnchor.GetPositionAndRotation(out Vector3 worldPosition, out Quaternion worldRotation)
+        {
+            transform.GetPositionAndRotation(out worldPosition, out worldRotation);
+        }
+
+        Vector3 INetworkAnchor.GetWorldScale()
+        {
+            return transform.lossyScale;
+        }
+
+        #endregion
 
         /// <summary>
         /// Lerps between two states, deciding the coordinate space per channel. A channel is lerped in

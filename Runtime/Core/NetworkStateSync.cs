@@ -21,17 +21,17 @@ namespace NetworkSync.Core
         public bool IsLocalAuthority => IsAuthority(NetworkManager.LocalClientId);
 
         /// <summary>Returns the current authoritative state.</summary>
-        protected abstract TState GetState();
+        public abstract TState GetState();
 
         /// <summary>Encodes a state into a network payload.</summary>
-        /// <param name="forSynchronize">True when encoding for <see cref="OnSynchronize"/> (late-join).</param>
+        /// <param name="forSynchronize">True when encoding for <see cref="OnSynchronize"/></param>
         protected abstract TPayload EncodeState(in TState current, bool forSynchronize = false);
 
         /// <summary>Decodes a network payload into a state.</summary>
         protected abstract TState DecodePayload(in TPayload payload);
 
         /// <summary>Applies a state.</summary>
-        protected virtual void SetState(in TState state)
+        public virtual void SetState(in TState state)
         {
         }
 
