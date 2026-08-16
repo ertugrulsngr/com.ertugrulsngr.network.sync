@@ -5,7 +5,7 @@ using NetworkSync.Core.Latency;
 namespace NetworkSync.Core.Timing
 {
     /// <summary>Network timing used by sync behaviours.</summary>
-    public sealed class NetworkTimeService
+    public sealed class NetworkTimeService : INetworkTimeService
     {
         /// <summary>NGO's default client server-time buffer in seconds.</summary>
         public const double NgoDefaultServerTimeOffsetSec = 0.05d;

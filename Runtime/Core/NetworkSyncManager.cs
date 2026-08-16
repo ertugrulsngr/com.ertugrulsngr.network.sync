@@ -30,10 +30,10 @@ namespace NetworkSync.Core
         private bool _sessionActive;
 
         /// <summary>Shared timing service for sync behaviours.</summary>
-        public NetworkTimeService TimeService => _timeService;
+        public INetworkTimeService TimeService => _timeService;
 
         /// <summary>Shared latency service for sync behaviours.</summary>
-        public NetworkLatencyService LatencyService => _latencyService;
+        public INetworkLatencyService LatencyService => _latencyService;
 
         /// <summary>Whether a network session is currently active.</summary>
         public bool IsSessionActive => _sessionActive;

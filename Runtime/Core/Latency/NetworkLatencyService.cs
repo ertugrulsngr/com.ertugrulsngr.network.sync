@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace NetworkSync.Core.Latency
 {
-    public sealed class NetworkLatencyService
+    public sealed class NetworkLatencyService : INetworkLatencyService
     {
         private readonly LatencySettings _settings;
         private readonly Dictionary<ulong, LatencyMetrics> _latencyMetrics = new Dictionary<ulong, LatencyMetrics>();
