@@ -20,6 +20,7 @@
     "url": "https://github.com/ertugrulsngr"
   },
   "dependencies": {
-    "com.unity.netcode.gameobjects": "2.13.1"
+    "com.unity.netcode.gameobjects": "2.13.1",
+    "com.unity.collections": "6.4.0"
   }
 }
