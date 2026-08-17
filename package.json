@@ -4,6 +4,21 @@
   "displayName": "Network Sync",
   "description": "Synchronization components and network services built on Netcode for GameObjects.",
   "unity": "6000.4",
+  "unityRelease": "11f1",
+  "documentationUrl": "https://github.com/ertugrulsngr/com.ertugrulsngr.network.sync",
+  "changelogUrl": "https://github.com/ertugrulsngr/com.ertugrulsngr.network.sync/blob/master/CHANGELOG.md",
+  "licensesUrl": "https://github.com/ertugrulsngr/com.ertugrulsngr.network.sync/blob/master/LICENSE.md",
+  "license": "MIT",
+  "keywords": [
+    "network",
+    "netcode",
+    "multiplayer",
+    "sync"
+  ],
+  "author": {
+    "name": "Ertugrul Sungur",
+    "url": "https://github.com/ertugrulsngr"
+  },
   "dependencies": {
     "com.unity.netcode.gameobjects": "2.13.1"
   }

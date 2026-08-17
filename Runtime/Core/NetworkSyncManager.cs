@@ -13,6 +13,14 @@ namespace NetworkSync.Core
 
         public static NetworkSyncManager Instance { get; private set; }
 
+#if UNITY_EDITOR
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsOnLoad()
+        {
+            Instance = null;
+        }
+#endif
+
         /// <summary>Raised when a network session becomes active (server and/or client started).</summary>
         public event Action SessionCreated;
 
