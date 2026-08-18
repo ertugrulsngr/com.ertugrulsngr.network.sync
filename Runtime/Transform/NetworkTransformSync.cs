@@ -132,8 +132,8 @@ namespace NetworkSync.Transform
 
             if (RelativePosition)
             {
-                Vector3 positionScale = RelativeScale ? anchorScale : Vector3.one;
-                state.Position = AnchoredTransformUtility.GetLocalPosition(worldPosition, anchorPosition, anchorRotation, positionScale);
+                state.Position = AnchoredTransformUtility.GetLocalPosition(
+                    worldPosition, anchorPosition, anchorRotation, anchorScale);
             }
             else
             {
@@ -352,10 +352,7 @@ namespace NetworkSync.Transform
             float scaleT)
         {
             bool sameAnchor = from.Anchor?.NetworkBehaviour == to.Anchor?.NetworkBehaviour;
-            bool useLocalPosition = sameAnchor &&
-                                    !from.IsWorldPosition &&
-                                    !to.IsWorldPosition &&
-                                    from.IsWorldScale == to.IsWorldScale;
+            bool useLocalPosition = sameAnchor && !from.IsWorldPosition && !to.IsWorldPosition;
             bool useLocalRotation = sameAnchor && !from.IsWorldRotation && !to.IsWorldRotation;
             bool useLocalScale = sameAnchor && !from.IsWorldScale && !to.IsWorldScale;
 
@@ -419,8 +416,7 @@ namespace NetworkSync.Transform
             result.Position = target.IsWorldPosition
                 ? worldPosition
                 : AnchoredTransformUtility.GetLocalPosition(
-                    worldPosition, anchorPosition, anchorRotation,
-                    target.IsWorldScale ? Vector3.one : anchorScale);
+                    worldPosition, anchorPosition, anchorRotation, anchorScale);
 
             result.Rotation = target.IsWorldRotation
                 ? worldRotation

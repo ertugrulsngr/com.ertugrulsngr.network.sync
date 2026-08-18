@@ -36,8 +36,8 @@ namespace NetworkSync.Transform
             }
             else
             {
-                Vector3 anchorScale = IsWorldScale ? Vector3.one : Anchor.GetWorldScale();
-                worldPosition = AnchoredTransformUtility.GetWorldPosition(Position, anchorPosition, anchorRotation, anchorScale);
+                worldPosition = AnchoredTransformUtility.GetWorldPosition(
+                    Position, anchorPosition, anchorRotation, Anchor.GetWorldScale());
             }
 
             if (IsWorldRotation)

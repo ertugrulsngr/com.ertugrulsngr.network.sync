@@ -12,3 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Authority send runs on a configurable network update stage instead of the time-service tick event.
 - Send and interpolation stages are inspector fields.
 
+### Fixed
+
+- Relative position always uses the anchor scale. Relative scale only affects the scale channel.
+
