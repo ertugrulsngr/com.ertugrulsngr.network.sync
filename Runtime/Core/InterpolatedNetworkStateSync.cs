@@ -4,57 +4,20 @@ using UnityEngine;
 namespace NetworkSync.Core
 {
     /// <summary>
-    /// Network state sync that buffers received samples and interpolates on remote peers.
-    /// Authority peers send on the network tick; remote peers sample on the interpolation update stage.
+    /// Network state sync that buffers received samples and interpolates them on remote peers.
     /// </summary>
-    public abstract class InterpolatedNetworkStateSync<TState, TPayload> : BufferedNetworkStateSync<TState, TPayload>, INetworkUpdateSystem
+    public abstract class InterpolatedNetworkStateSync<TState, TPayload> : BufferedNetworkStateSync<TState, TPayload>
         where TState : struct, ITickStamped
         where TPayload : struct, INetworkSerializable
     {
-        private NetworkUpdateStage _interpolationStage = NetworkUpdateStage.PostScriptLateUpdate;
-
-        /// <summary>The update stage used for interpolation.</summary>
-        public NetworkUpdateStage InterpolationStage
-        {
-            get => _interpolationStage;
-            set
-            {
-                this.UnregisterNetworkUpdate(_interpolationStage);
-                _interpolationStage = value;
-
-                if (IsSpawned && isActiveAndEnabled && value != NetworkUpdateStage.Unset)
-                {
-                    this.RegisterNetworkUpdate(_interpolationStage);
-                }
-            }
-        }
+        [Tooltip("Network update stage used to sample and apply interpolated state.")]
+        public NetworkUpdateStage InterpolationStage = NetworkUpdateStage.PostScriptLateUpdate;
 
         /// <summary>Fractional tick used to sample the interpolation buffer.</summary>
         protected virtual double InterpolationTick => NetworkSyncManager.Instance.TimeService.InterpolationTime.TickWithPartial;
 
         /// <summary>Interpolates from one state toward another by factor t (0..1).</summary>
         protected abstract TState Interpolate(in TState from, in TState to, float t);
-
-        protected override void OnEnable()
-        {
-            base.OnEnable();
-            if (IsSpawned)
-            {
-                RegisterInterpolationCallback();
-            }
-        }
-
-        protected override void OnDisable()
-        {
-            UnregisterInterpolationCallback();
-            base.OnDisable();
-        }
-
-        protected override void OnSpawned()
-        {
-            base.OnSpawned();
-            RegisterInterpolationCallback();
-        }
 
         protected override void OnSynchronizationComplete()
         {
@@ -66,30 +29,18 @@ namespace NetworkSync.Core
             }
         }
 
-        protected override void OnDespawning()
+        protected override int GetRequiredNetworkUpdateStageMask()
         {
-            UnregisterInterpolationCallback();
-            base.OnDespawning();
+            return base.GetRequiredNetworkUpdateStageMask() | GetNetworkUpdateStageBit(InterpolationStage);
         }
 
-        public void NetworkUpdate(NetworkUpdateStage updateStage)
+        public override void NetworkUpdate(NetworkUpdateStage updateStage)
         {
-            InterpolateAndApply();
-        }
-
-        private void RegisterInterpolationCallback()
-        {
-            UnregisterInterpolationCallback();
-
-            if (_interpolationStage != NetworkUpdateStage.Unset)
+            base.NetworkUpdate(updateStage);
+            if (updateStage == InterpolationStage)
             {
-                this.RegisterNetworkUpdate(_interpolationStage);
+                InterpolateAndApply();
             }
-        }
-
-        private void UnregisterInterpolationCallback()
-        {
-            this.UnregisterNetworkUpdate(_interpolationStage);
         }
 
         /// <summary>Applies a state.</summary>

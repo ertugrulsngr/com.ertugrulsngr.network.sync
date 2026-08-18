@@ -6,9 +6,9 @@ namespace NetworkSync.Core
 {
     /// <summary>
     /// Network state sync that stores received tick-stamped states in a buffer.
-    /// Authority peers send on the network tick. Subclasses decide how buffered states are consumed.
+    /// Authority sends at a tick interval. Subclasses decide how the buffer is consumed.
     /// </summary>
-    public abstract class BufferedNetworkStateSync<TState, TPayload> : NetworkStateSync<TState, TPayload>
+    public abstract class BufferedNetworkStateSync<TState, TPayload> : NetworkStateSync<TState, TPayload>, INetworkUpdateSystem
         where TState : struct, ITickStamped
         where TPayload : struct, INetworkSerializable
     {
@@ -21,8 +21,12 @@ namespace NetworkSync.Core
         [Tooltip("Network ticks between sends. 0 = every tick.")]
         public int TicksPerSend;
 
+        [Tooltip("Network update stage used to send authoritative state.")]
+        public NetworkUpdateStage SendStage = NetworkUpdateStage.PostScriptLateUpdate;
+
         private int _forcedStateTick = int.MinValue;
-        private int _ticksSinceSend;
+        private int _lastSentTick = int.MinValue;
+        private int _registeredNetworkUpdateStageMask;
 
         /// <summary>Buffer of received tick-stamped states.</summary>
         protected NetworkStateBuffer<TState> NetworkStateBuffer { get; private set; }
@@ -37,21 +41,18 @@ namespace NetworkSync.Core
 
         protected virtual void OnEnable()
         {
-            if (IsSpawned)
-            {
-                RegisterBufferCallbacks();
-            }
+            RefreshNetworkUpdateStages();
         }
 
         protected virtual void OnDisable()
         {
-            UnregisterBufferCallbacks();
+            ClearNetworkUpdateStages();
         }
 
         protected override void OnSpawned()
         {
             base.OnSpawned();
-            RegisterBufferCallbacks();
+            RefreshNetworkUpdateStages();
         }
 
         protected override void OnSynchronizationComplete()
@@ -66,29 +67,68 @@ namespace NetworkSync.Core
 
         protected override void OnDespawning()
         {
-            UnregisterBufferCallbacks();
+            ClearNetworkUpdateStages();
             NetworkStateBuffer.Clear();
             _forcedStateTick = int.MinValue;
-            _ticksSinceSend = 0;
+            _lastSentTick = int.MinValue;
             base.OnDespawning();
         }
 
-        /// <summary>Called each network tick. Default sends from authority on the configured interval.</summary>
-        protected virtual void OnNetworkTick()
+        protected virtual void OnValidate()
+        {
+            if (!Application.isPlaying) return;
+            RefreshNetworkUpdateStages();
+        }
+
+        public virtual void NetworkUpdate(NetworkUpdateStage updateStage)
+        {
+            if (updateStage == SendStage)
+            {
+                OnSendStage();
+            }
+        }
+
+        protected virtual void OnSendStage()
         {
             if (!IsSpawned || !IsLocalAuthority) return;
 
-            if (TicksPerSend <= 0)
-            {
-                SendState();
-                return;
-            }
+            int tick = NetworkSyncManager.Instance.TimeService.ServerTime.Tick;
+            if (!ShouldSendOnTick(tick)) return;
 
-            _ticksSinceSend++;
-            if (_ticksSinceSend < TicksPerSend) return;
-
-            _ticksSinceSend = 0;
+            _lastSentTick = tick;
             SendState();
+        }
+
+        /// <summary>True when enough ticks have elapsed since the last send.</summary>
+        protected virtual bool ShouldSendOnTick(int tick)
+        {
+            if (_lastSentTick == int.MinValue) return true;
+
+            return tick - _lastSentTick >= Mathf.Max(1, TicksPerSend);
+        }
+
+        /// <summary>Mask bit for a network update stage.</summary>
+        protected static int GetNetworkUpdateStageBit(NetworkUpdateStage stage)
+        {
+            return stage == NetworkUpdateStage.Unset ? 0 : 1 << (int)stage;
+        }
+
+        /// <summary>Stages this component needs update callbacks on.</summary>
+        protected virtual int GetRequiredNetworkUpdateStageMask()
+        {
+            return GetNetworkUpdateStageBit(SendStage);
+        }
+
+        /// <summary>Registers the stages currently requested and drops the rest.</summary>
+        public void RefreshNetworkUpdateStages()
+        {
+            ApplyNetworkUpdateStageMask(IsSpawned && isActiveAndEnabled ? GetRequiredNetworkUpdateStageMask() : 0);
+        }
+
+        /// <summary>Drops every registered stage.</summary>
+        public void ClearNetworkUpdateStages()
+        {
+            ApplyNetworkUpdateStageMask(0);
         }
 
         /// <summary>Forces a state now and ignores buffered states until a newer tick arrives.</summary>
@@ -107,18 +147,27 @@ namespace NetworkSync.Core
             NetworkStateBuffer.TryAdd(state);
         }
 
-        private void RegisterBufferCallbacks()
+        private void ApplyNetworkUpdateStageMask(int desired)
         {
-            UnregisterBufferCallbacks();
-            NetworkSyncManager.Instance.TimeService.Tick += OnNetworkTick;
-        }
+            int toRegister = desired & ~_registeredNetworkUpdateStageMask;
+            int toUnregister = _registeredNetworkUpdateStageMask & ~desired;
 
-        private void UnregisterBufferCallbacks()
-        {
-            if (NetworkSyncManager.Instance != null && NetworkSyncManager.Instance.TimeService != null)
+            if (toRegister == 0 && toUnregister == 0) return;
+
+            for (int stage = 1; stage <= (int)NetworkUpdateStage.PostScriptLateUpdate; stage++)
             {
-                NetworkSyncManager.Instance.TimeService.Tick -= OnNetworkTick;
+                int bit = 1 << stage;
+                if ((toRegister & bit) != 0)
+                {
+                    this.RegisterNetworkUpdate((NetworkUpdateStage)stage);
+                }
+                else if ((toUnregister & bit) != 0)
+                {
+                    this.UnregisterNetworkUpdate((NetworkUpdateStage)stage);
+                }
             }
+
+            _registeredNetworkUpdateStageMask = desired;
         }
     }
 }

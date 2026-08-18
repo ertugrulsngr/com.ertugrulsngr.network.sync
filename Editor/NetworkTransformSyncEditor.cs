@@ -26,6 +26,8 @@ namespace NetworkSync.Editor
         private SerializedProperty _autoAnchorFromParent;
         private SerializedProperty _ticksPerSend;
         private SerializedProperty _bufferCapacity;
+        private SerializedProperty _sendStage;
+        private SerializedProperty _interpolationStage;
         private SerializedProperty _smoothPosition;
         private SerializedProperty _positionSmoothTime;
         private SerializedProperty _smoothRotation;
@@ -58,6 +60,8 @@ namespace NetworkSync.Editor
             _autoAnchorFromParent = serializedObject.FindProperty(nameof(NetworkTransformSync.AutoAnchorFromParent));
             _ticksPerSend = serializedObject.FindProperty(nameof(NetworkTransformSync.TicksPerSend));
             _bufferCapacity = serializedObject.FindProperty(nameof(NetworkTransformSync.BufferCapacity));
+            _sendStage = serializedObject.FindProperty(nameof(NetworkTransformSync.SendStage));
+            _interpolationStage = serializedObject.FindProperty(nameof(NetworkTransformSync.InterpolationStage));
             _smoothPosition = serializedObject.FindProperty(nameof(NetworkTransformSync.SmoothPosition));
             _positionSmoothTime = serializedObject.FindProperty(nameof(NetworkTransformSync.PositionSmoothTime));
             _smoothRotation = serializedObject.FindProperty(nameof(NetworkTransformSync.SmoothRotation));
@@ -77,6 +81,8 @@ namespace NetworkSync.Editor
             {
                 EditorGUILayout.PropertyField(_ticksPerSend);
                 EditorGUILayout.PropertyField(_bufferCapacity);
+                EditorGUILayout.PropertyField(_sendStage);
+                EditorGUILayout.PropertyField(_interpolationStage);
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
 

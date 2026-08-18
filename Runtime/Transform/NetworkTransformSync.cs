@@ -27,7 +27,7 @@ namespace NetworkSync.Transform
         public bool RelativeRotation = true;
         public bool RelativeScale = true;
 
-        [Tooltip("Lerp rendered position toward the interpolated sample (NGO LegacyLerp style).")]
+        [Tooltip("Lerp rendered position toward the interpolated sample.")]
         public bool SmoothPosition = true;
         [Min(0.001f)]
         [Tooltip("Seconds to close most of the gap to the interpolated position target.")]
@@ -45,6 +45,11 @@ namespace NetworkSync.Transform
         [Tooltip("Seconds to close most of the gap to the interpolated scale target.")]
         public float ScaleSmoothTime = 0.1f;
 
+        // TODO: Known issue — when the Anchor is another NetworkTransformSync, world pose
+        // is built from live transforms. Apply and send on the same update stage have no
+        // guaranteed order, so a child can read the parent before that parent has been
+        // updated this frame. Anchors that are not NetworkTransformSync (moved in Update
+        // or LateUpdate) are fine. This project currently only uses that kind of Anchor.
         public INetworkAnchor Anchor { get; set; }
 
         /// <summary>When true, authority binds <see cref="Anchor"/> from the network parent.</summary>

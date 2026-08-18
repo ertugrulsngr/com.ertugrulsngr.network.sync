@@ -7,3 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Authority send runs on a configurable network update stage instead of the time-service tick event.
+- Send and interpolation stages are inspector fields.
+

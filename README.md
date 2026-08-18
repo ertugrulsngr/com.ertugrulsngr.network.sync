@@ -19,7 +19,7 @@ It also includes a shared timing and latency system based on the RFC 6298 round-
 ## Features
 
 - **State sync foundation.** A send-and-receive pipeline over the network, with authority-based sending and automatic late-join catch-up to the latest state.
-- **Interpolated layer.** Sends state on the network tick and buffers what remotes receive, so motion stays smooth under latency.
+- **Interpolated layer.** Buffers what remotes receive and interpolates it, so motion stays smooth under latency.
 - **Transform sync.** Synchronizes position, rotation, and scale with smoothing and teleport support. It can sync in world space or relative to an anchor — a moving platform, vehicle, or elevator — so relative motion works with or without Unity parenting and stays correct while the anchor itself moves.
 - **Timing and latency services.** A shared clock and round-trip estimation used by every sync behaviour.
 
@@ -55,10 +55,10 @@ NetworkSyncManager        scene entry point
 └── Time service          shared server / send / interpolation clocks
         │
 State sync                send and receive + late-join
-    └── Interpolated      tick send + buffering + remote sampling
+    └── Interpolated      buffering + remote interpolation
             └── Transform  position / rotation / scale · anchors · smoothing
 ```
 
 - **Latency service:** tracks round-trip time and keeps a smoothed estimate as conditions change.
 - **Time service:** provides a shared clock, a send timeline for stamping outgoing state, and an interpolation timeline that samples slightly in the past for smoother remote motion.
-- **Sync stack:** authority sends on the network tick; remotes buffer what they receive and interpolate each frame, then optionally smooth toward the target.
+- **Sync stack:** authority sends at a tick interval; remotes buffer what they receive and interpolate, then optionally smooth toward the target.
